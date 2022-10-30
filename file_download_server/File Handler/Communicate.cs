@@ -12,8 +12,8 @@ namespace UDP_FTP.File_Handler
 {
     class Communicate
     {
-        private const string Server = "MyServer";
-        private string Client;
+        private const string Server = "Server";
+        private string Client = "Client";
         private int SessionID;
         private Socket socket;
         private IPEndPoint remoteEndpoint;
@@ -31,7 +31,7 @@ namespace UDP_FTP.File_Handler
             remoteEP = (EndPoint)new IPEndPoint(IPAddress.Any, 5010);
 
             // TODO: Specify the buffer size
-            buffer = new byte[1000];
+            buffer = new byte[(int)Enums.Params.BUFFER_SIZE];
 
             // TODO: Get a random SessionID
             SessionID = new Random().Next(1000, 9999);
@@ -48,11 +48,19 @@ namespace UDP_FTP.File_Handler
             // TODO: Instantiate and initialize different messages needed for the communication
             // required messages are: HelloMSG, RequestMSG, DataMSG, AckMSG, CloseMSG
             // Set attribute values for each class accordingly 
-            // HelloMSG GreetBack = new HelloMSG()
-            // RequestMSG req = new RequestMSG();
-            // DataMSG data = new DataMSG();
-            // AckMSG ack = new AckMSG();
-            // CloseMSG cls = new CloseMSG();
+            HelloMSG greetBack = new HelloMSG();
+            RequestMSG req = new RequestMSG();
+            DataMSG data = new DataMSG();
+            AckMSG ack = new AckMSG();
+            CloseMSG cls = new CloseMSG();
+
+            var helloSettings = new ConSettings()
+            {
+                Type = Messages.HELLO,
+                To = Server,
+                From = Client,
+                ConID = 1,
+            };
 
 
             // TODO: Start the communication by receiving a HelloMSG message
@@ -60,7 +68,7 @@ namespace UDP_FTP.File_Handler
             // Verify if there are no errors
             // Type must match one of the ConSettings' types and receiver address must be the server address
             int dataSize;
-            string data;
+            string data2;
 
             while (true)
             {
@@ -68,20 +76,22 @@ namespace UDP_FTP.File_Handler
 
                 // Receive message
                 dataSize = socket.ReceiveFrom(buffer, ref remoteEP);
-                data = Encoding.ASCII.GetString(buffer, 0, dataSize);
-                HelloMSG hello = JsonSerializer.Deserialize<HelloMSG>(data);
+                data2 = Encoding.ASCII.GetString(buffer, 0, dataSize);
+                HelloMSG hello = JsonSerializer.Deserialize<HelloMSG>(data2);
                 Console.WriteLine("A message received from " + remoteEP.ToString() + " " + data);
 
-                // Send reply message
-                var helloReply = new HelloMSG()
-                {
-                    Type = Messages.HELLO_REPLY,
-                    To = hello.From,
-                    From = hello.To,
-                    ConID = hello.ConID
-                };
+                // Verify message
+                var error = ErrorHandler.VerifyGreeting(hello, helloSettings);
+                if (error != 0) Console.WriteLine("No error..");
+                else throw new Exception(error.ToString());
 
-                msg = Encoding.ASCII.GetBytes(JsonSerializer.Serialize(helloReply));
+                // Send reply message
+                greetBack.Type = Messages.HELLO_REPLY;
+                greetBack.To = hello.From;
+                greetBack.From = hello.To;
+                greetBack.ConID = hello.ConID;
+
+                msg = Encoding.ASCII.GetBytes(JsonSerializer.Serialize(greetBack));
                 socket.SendTo(msg, msg.Length, SocketFlags.None, remoteEP);
 
             }
