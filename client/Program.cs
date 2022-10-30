@@ -7,6 +7,8 @@ using UDP_FTP.Models;
 using UDP_FTP.Error_Handling;
 using static UDP_FTP.Models.Enums;
 
+using System.Text.Json.Serialization;
+
 namespace Client
 {
     class Program
@@ -28,7 +30,14 @@ namespace Client
 
             // TODO: Initialise the socket/s as needed from the description of the assignment
 
-            HelloMSG h = new HelloMSG();
+            HelloMSG h = new HelloMSG()
+            {
+                Type = Messages.HELLO,
+                To = "Server",
+                From = "Client",
+                ConID = 1,
+            };
+
             RequestMSG r = new RequestMSG();
             DataMSG D = new DataMSG();
             AckMSG ack = new AckMSG();
@@ -44,23 +53,24 @@ namespace Client
             sock = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
 
             // TODO: Send hello mesg
-            msg = Encoding.ASCII.GetBytes("Hello, from client");
+            msg = Encoding.ASCII.GetBytes(JsonSerializer.Serialize(h));
             sock.SendTo(msg, msg.Length, SocketFlags.None, ServerEndpoint);
 
             // TODO: Receive and verify a HelloMSG 
             b = sock.ReceiveFrom(buffer, ref remoteEP);
             data = Encoding.ASCII.GetString(buffer, 0, b);
+            var helloReply = JsonSerializer.Deserialize<HelloMSG>(data);
             Console.WriteLine("Server said: " + data);
 
             // TODO: Send the RequestMSG message requesting to download a file name
-            msg = Encoding.ASCII.GetBytes("Pls lemme download");
-            sock.SendTo(msg, msg.Length, SocketFlags.None, ServerEndpoint);
+            // msg = Encoding.ASCII.GetBytes("Pls lemme download");
+            // sock.SendTo(msg, msg.Length, SocketFlags.None, ServerEndpoint);
 
             // TODO: Receive a RequestMSG from remoteEndpoint
             // receive the message and verify if there are no errors
-            b = sock.ReceiveFrom(buffer, ref remoteEP);
-            data = Encoding.ASCII.GetString(buffer, 0, b);
-            Console.WriteLine("Server said: " + data);
+            // b = sock.ReceiveFrom(buffer, ref remoteEP);
+            // data = Encoding.ASCII.GetString(buffer, 0, b);
+            // Console.WriteLine("Server said: " + data);
 
             // TODO: Check if there are more DataMSG messages to be received 
             // receive the message and verify if there are no errors

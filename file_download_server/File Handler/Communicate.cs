@@ -69,22 +69,21 @@ namespace UDP_FTP.File_Handler
                 // Receive message
                 dataSize = socket.ReceiveFrom(buffer, ref remoteEP);
                 data = Encoding.ASCII.GetString(buffer, 0, dataSize);
-
+                HelloMSG hello = JsonSerializer.Deserialize<HelloMSG>(data);
                 Console.WriteLine("A message received from " + remoteEP.ToString() + " " + data);
 
-                // Send message
-                msg = Encoding.ASCII.GetBytes("Hello, from server");
+                // Send reply message
+                var helloReply = new HelloMSG()
+                {
+                    Type = Messages.HELLO_REPLY,
+                    To = hello.From,
+                    From = hello.To,
+                    ConID = hello.ConID
+                };
+
+                msg = Encoding.ASCII.GetBytes(JsonSerializer.Serialize(helloReply));
                 socket.SendTo(msg, msg.Length, SocketFlags.None, remoteEP);
 
-                // Receive message
-                dataSize = socket.ReceiveFrom(buffer, ref remoteEP);
-                data = Encoding.ASCII.GetString(buffer, 0, dataSize);
-
-                Console.WriteLine("A message received from " + remoteEP.ToString() + ": " + data);
-
-                // Send message
-                msg = Encoding.ASCII.GetBytes("Ok, sure");
-                socket.SendTo(msg, msg.Length, SocketFlags.None, remoteEP);
             }
 
 
@@ -140,8 +139,8 @@ namespace UDP_FTP.File_Handler
             // Receive the message and verify if there are no errors
 
 
-            Console.WriteLine("Group members: {0} | {1}", "student_1", "student_2");
-            return ErrorType.NOERROR;
+            // Console.WriteLine("Group members: {0} | {1}", "student_1", "student_2");
+            // return ErrorType.NOERROR;
         }
     }
 }
