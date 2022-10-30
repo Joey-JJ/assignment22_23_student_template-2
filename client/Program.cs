@@ -62,9 +62,17 @@ namespace Client
             var helloReply = JsonSerializer.Deserialize<HelloMSG>(data);
             Console.WriteLine("Server said: " + data);
 
+            // TODO: VERIFY HELLO REPLY
+
             // TODO: Send the RequestMSG message requesting to download a file name
-            // msg = Encoding.ASCII.GetBytes("Pls lemme download");
-            // sock.SendTo(msg, msg.Length, SocketFlags.None, ServerEndpoint);
+            r.Type = Messages.REQUEST;
+            r.To = helloReply.From;
+            r.From = helloReply.To;
+            r.FileName = "test.txt";
+            r.ConID = helloReply.ConID;
+
+            msg = Encoding.ASCII.GetBytes(JsonSerializer.Serialize(r));
+            sock.SendTo(msg, msg.Length, SocketFlags.None, ServerEndpoint);
 
             // TODO: Receive a RequestMSG from remoteEndpoint
             // receive the message and verify if there are no errors
