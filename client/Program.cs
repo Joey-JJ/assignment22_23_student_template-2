@@ -68,7 +68,7 @@ namespace Client
             r.Type = Messages.REQUEST;
             r.To = helloReply.From;
             r.From = helloReply.To;
-            r.FileName = "test.txt";
+            r.FileName = "tesfdsft.txt";
             r.ConID = helloReply.ConID;
 
             msg = Encoding.ASCII.GetBytes(JsonSerializer.Serialize(r));
@@ -76,9 +76,16 @@ namespace Client
 
             // TODO: Receive a RequestMSG from remoteEndpoint
             // receive the message and verify if there are no errors
-            // b = sock.ReceiveFrom(buffer, ref remoteEP);
-            // data = Encoding.ASCII.GetString(buffer, 0, b);
-            // Console.WriteLine("Server said: " + data);
+            b = sock.ReceiveFrom(buffer, ref remoteEP);
+            data = Encoding.ASCII.GetString(buffer, 0, b);
+            var reqReply = JsonSerializer.Deserialize<RequestMSG>(data);
+            Console.WriteLine("Server said: " + data);
+
+            if (reqReply.Status != 0)
+            {
+                Console.WriteLine("Error: " + reqReply.Status + ", File can not be found.");
+                return;
+            }
 
             // TODO: Check if there are more DataMSG messages to be received 
             // receive the message and verify if there are no errors

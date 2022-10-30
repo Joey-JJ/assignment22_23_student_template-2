@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
@@ -113,16 +114,20 @@ namespace UDP_FTP.File_Handler
 
 
             // TODO: Send a RequestMSG of type REPLY message to remoteEndpoint verifying the status
+            req.To = requestMsg.From;
+            req.From = requestMsg.To;
+            req.ConID = requestMsg.ConID;
+            req.Status = File.Exists($"{requestMsg.FileName}") ? ErrorType.NOERROR : ErrorType.BADREQUEST;
+            req.FileName = requestMsg.FileName;
 
-
+            msg = Encoding.ASCII.GetBytes(JsonSerializer.Serialize(req));
+            socket.SendTo(msg, msg.Length, SocketFlags.None, remoteEP);
 
             // TODO:  Start sending file data by setting first the socket ReceiveTimeout value
 
 
-
             // TODO: Open and read the text-file first
             // Make sure to locate a path on windows and macos platforms
-
 
 
             // TODO: Sliding window with go-back-n implementation
@@ -149,6 +154,7 @@ namespace UDP_FTP.File_Handler
 
             // TODO: Send a CloseMSG message to the client for the current session
             // Send close connection request
+
 
             // TODO: Receive and verify a CloseMSG message confirmation for the current session
             // Get close connection confirmation
