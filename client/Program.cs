@@ -18,12 +18,13 @@ namespace Client
             // If a group has only one member fill in an empty string for the second student
             string student_1 = "";
             string student_2 = "";
-            Console.WriteLine($"{student_1} | {student_2}");
-
+            _ = student_1 + student_2;
 
             byte[] buffer = new byte[1000];
             byte[] msg = new byte[100];
             Socket sock;
+            int b;
+            string data;
 
             // TODO: Initialise the socket/s as needed from the description of the assignment
 
@@ -47,15 +48,19 @@ namespace Client
             sock.SendTo(msg, msg.Length, SocketFlags.None, ServerEndpoint);
 
             // TODO: Receive and verify a HelloMSG 
-            int b = sock.ReceiveFrom(buffer, ref remoteEP);
-            string data = Encoding.ASCII.GetString(buffer, 0, b);
+            b = sock.ReceiveFrom(buffer, ref remoteEP);
+            data = Encoding.ASCII.GetString(buffer, 0, b);
             Console.WriteLine("Server said: " + data);
 
             // TODO: Send the RequestMSG message requesting to download a file name
+            msg = Encoding.ASCII.GetBytes("Pls lemme download");
+            sock.SendTo(msg, msg.Length, SocketFlags.None, ServerEndpoint);
 
             // TODO: Receive a RequestMSG from remoteEndpoint
             // receive the message and verify if there are no errors
-
+            b = sock.ReceiveFrom(buffer, ref remoteEP);
+            data = Encoding.ASCII.GetString(buffer, 0, b);
+            Console.WriteLine("Server said: " + data);
 
             // TODO: Check if there are more DataMSG messages to be received 
             // receive the message and verify if there are no errors

@@ -59,14 +59,31 @@ namespace UDP_FTP.File_Handler
             // Receive and deserialize HelloMSG message 
             // Verify if there are no errors
             // Type must match one of the ConSettings' types and receiver address must be the server address
+            int dataSize;
+            string data;
+
             while (true)
             {
                 Console.WriteLine("\n Waiting for the next client message..");
-                int dataSize = socket.ReceiveFrom(buffer, ref remoteEP);
 
-                var data = Encoding.ASCII.GetString(buffer, 0, dataSize);
+                // Receive message
+                dataSize = socket.ReceiveFrom(buffer, ref remoteEP);
+                data = Encoding.ASCII.GetString(buffer, 0, dataSize);
+
                 Console.WriteLine("A message received from " + remoteEP.ToString() + " " + data);
+
+                // Send message
                 msg = Encoding.ASCII.GetBytes("Hello, from server");
+                socket.SendTo(msg, msg.Length, SocketFlags.None, remoteEP);
+
+                // Receive message
+                dataSize = socket.ReceiveFrom(buffer, ref remoteEP);
+                data = Encoding.ASCII.GetString(buffer, 0, dataSize);
+
+                Console.WriteLine("A message received from " + remoteEP.ToString() + ": " + data);
+
+                // Send message
+                msg = Encoding.ASCII.GetBytes("Ok, sure");
                 socket.SendTo(msg, msg.Length, SocketFlags.None, remoteEP);
             }
 
