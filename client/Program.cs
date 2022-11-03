@@ -33,7 +33,7 @@ namespace Client
             HelloMSG h = new HelloMSG()
             {
                 Type = Messages.HELLO,
-                To = "Server",
+                To = "MyServer",
                 From = "Client",
                 ConID = 1,
             };
@@ -47,62 +47,100 @@ namespace Client
             IPEndPoint sender = new IPEndPoint(IPAddress.Any, 0);
             EndPoint remoteEP = (EndPoint)sender;
 
-            // try
-            // {
-            // TODO: Instantiate and initialize your socket 
-            sock = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
-
-            // TODO: Send hello mesg
-            msg = Encoding.ASCII.GetBytes(JsonSerializer.Serialize(h));
-            sock.SendTo(msg, msg.Length, SocketFlags.None, ServerEndpoint);
-
-            // TODO: Receive and verify a HelloMSG 
-            b = sock.ReceiveFrom(buffer, ref remoteEP);
-            data = Encoding.ASCII.GetString(buffer, 0, b);
-            var helloReply = JsonSerializer.Deserialize<HelloMSG>(data);
-            Console.WriteLine("Server said: " + data);
-
-            // TODO: VERIFY HELLO REPLY
-
-            // TODO: Send the RequestMSG message requesting to download a file name
-            r.Type = Messages.REQUEST;
-            r.To = helloReply.From;
-            r.From = helloReply.To;
-            r.FileName = "tesfdsft.txt";
-            r.ConID = helloReply.ConID;
-
-            msg = Encoding.ASCII.GetBytes(JsonSerializer.Serialize(r));
-            sock.SendTo(msg, msg.Length, SocketFlags.None, ServerEndpoint);
-
-            // TODO: Receive a RequestMSG from remoteEndpoint
-            // receive the message and verify if there are no errors
-            b = sock.ReceiveFrom(buffer, ref remoteEP);
-            data = Encoding.ASCII.GetString(buffer, 0, b);
-            var reqReply = JsonSerializer.Deserialize<RequestMSG>(data);
-            Console.WriteLine("Server said: " + data);
-
-            if (reqReply.Status != 0)
+            try
             {
-                Console.WriteLine("Error: " + reqReply.Status + ", File can not be found.");
-                return;
+                // TODO: Instantiate and initialize your socket 
+                sock = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
+
+                // TODO: Send hello mesg
+                msg = Encoding.ASCII.GetBytes(JsonSerializer.Serialize(h));
+                sock.SendTo(msg, msg.Length, SocketFlags.None, ServerEndpoint);
+
+                // TODO: Receive and verify a HelloMSG 
+                b = sock.ReceiveFrom(buffer, ref remoteEP);
+                data = Encoding.ASCII.GetString(buffer, 0, b);
+                var helloReply = JsonSerializer.Deserialize<HelloMSG>(data);
+                Console.WriteLine("Server said: " + data);
+
+                // TODO: VERIFY HELLO REPLY
+
+                // TODO: Send the RequestMSG message requesting to download a file name
+                r.Type = Messages.REQUEST;
+                r.To = helloReply.From;
+                r.From = helloReply.To;
+                r.FileName = "test.txt";
+                r.ConID = helloReply.ConID;
+
+                msg = Encoding.ASCII.GetBytes(JsonSerializer.Serialize(r));
+                sock.SendTo(msg, msg.Length, SocketFlags.None, ServerEndpoint);
+
+                // TODO: Receive a RequestMSG from remoteEndpoint
+                // receive the message and verify if there are no errors
+                b = sock.ReceiveFrom(buffer, ref remoteEP);
+                data = Encoding.ASCII.GetString(buffer, 0, b);
+                var reqReply = JsonSerializer.Deserialize<RequestMSG>(data);
+
+
+                Console.WriteLine("Server said: " + data);
+
+                if (reqReply.Status != 0)
+                {
+                    Console.WriteLine("Error: " + reqReply.Status + ", File can not be found.");
+                    return;
+                }
+
+
+                // TODO: Check if there are more DataMSG messages to be received 
+                // receive the message and verify if there are no errors
+
+                DataMSG dataMSG;
+
+                var transferring = true;
+                while (transferring)
+                {
+                    // Receive data msg and decode it
+                    b = sock.ReceiveFrom(buffer, ref remoteEP);
+                    data = Encoding.ASCII.GetString(buffer, 0, b);
+                    dataMSG = JsonSerializer.Deserialize<DataMSG>(data);
+
+                    // Stop receiving once last packet is received
+                    if (!dataMSG.More) transferring = false;
+
+                    // Logging received data
+                    Console.WriteLine($"DATA RECEIVED: {data}");
+
+                    // Configuring ACK msg
+                    ack.ConID = dataMSG.ConID;
+                    ack.From = dataMSG.To;
+                    ack.To = dataMSG.From;
+                    ack.Type = Messages.ACK;
+                    ack.Sequence = dataMSG.Sequence;
+
+                    // Sending ACK msg
+                    msg = Encoding.ASCII.GetBytes(JsonSerializer.Serialize(ack));
+                    sock.SendTo(msg, msg.Length, SocketFlags.None, ServerEndpoint);
+                }
+
+                // TODO: Receive close message
+                // receive the message and verify if there are no errors
+                b = sock.ReceiveFrom(buffer, ref remoteEP);
+                data = Encoding.ASCII.GetString(buffer, 0, b);
+                var closeMSG = JsonSerializer.Deserialize<CloseMSG>(data);
+                Console.WriteLine($"CLOSE: {data}");
+
+                cls.ConID = closeMSG.ConID;
+                cls.From = closeMSG.To;
+                cls.To = closeMSG.From;
+                cls.Type = Messages.CLOSE_CONFIRM;
+
+                // TODO: confirm close message
+                msg = Encoding.ASCII.GetBytes(JsonSerializer.Serialize(cls));
+                sock.SendTo(msg, msg.Length, SocketFlags.None, ServerEndpoint);
             }
-
-            // TODO: Check if there are more DataMSG messages to be received 
-            // receive the message and verify if there are no errors
-
-            // TODO: Send back AckMSG for each received DataMSG 
-
-
-            // TODO: Receive close message
-            // receive the message and verify if there are no errors
-
-            // TODO: confirm close message
-
-            // }
-            // catch
-            // {
-            //     Console.WriteLine("\n Socket Error. Terminating");
-            // }
+            catch
+            {
+                Console.WriteLine("\n Socket Error. Terminating");
+            }
 
             Console.WriteLine("Download Complete!");
 
