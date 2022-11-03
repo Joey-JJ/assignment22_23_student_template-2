@@ -63,12 +63,22 @@ namespace Client
                 Console.WriteLine("Server said: " + data);
 
                 // TODO: VERIFY HELLO REPLY
+                var conSettings = new ConSettings()
+                {
+                    Type = Messages.HELLO_REPLY,
+                    To = "Client",
+                    From = "MyServer",
+                    ConID = helloReply.ConID,
+                };
+
+                var error = ErrorHandler.VerifyGreetingReply(helloReply, conSettings);
+                if (error != 0) throw new Exception(error.ToString());
 
                 // TODO: Send the RequestMSG message requesting to download a file name
                 r.Type = Messages.REQUEST;
                 r.To = helloReply.From;
                 r.From = helloReply.To;
-                r.FileName = "test.txt";
+                r.FileName = "tesdsadt.txt";
                 r.ConID = helloReply.ConID;
 
                 msg = Encoding.ASCII.GetBytes(JsonSerializer.Serialize(r));
@@ -139,7 +149,7 @@ namespace Client
             }
             catch
             {
-                Console.WriteLine("\n Socket Error. Terminating");
+                Console.WriteLine("\nSocket Error. Terminating");
             }
 
             Console.WriteLine("Download Complete!");
