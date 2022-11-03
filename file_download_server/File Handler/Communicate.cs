@@ -141,37 +141,38 @@ namespace UDP_FTP.File_Handler
             // second you wait for the acks
             // then you start again.
 
-            var segmentSize = (int)Params.SEGMENT_SIZE;
-            var windowSize = (int)Params.WINDOW_SIZE;
-
             var segmentsSent = 0;
-            var totalSegments = (int)Math.Ceiling(file.Length / (double)segmentSize);
+            var totalSegments = Math.Ceiling(file.Length / (double)Params.SEGMENT_SIZE);
+            var bytesLeft = segmentsSent * (int)Params.SEGMENT_SIZE;
 
-            var totalWindows = totalSegments / (double)windowSize;
-
-            byte[] dataToSend;
-
-            Console.WriteLine("Total size: " + file.Length);
+            Console.WriteLine(file.Length);
 
             while (segmentsSent < totalSegments)
             {
-                List<AckMSG> ackMSGs = new();
-
-                // Send window cycle, check if last window cycle is smaller than window size
-                for (int i = 0; i < (totalSegments - segmentsSent >= windowSize ? windowSize : totalSegments - segmentsSent); i++)
+                byte[] dataToSend;
+                for (var i = 0; i < (int)Params.WINDOW_SIZE; i++)
                 {
-                    dataToSend = new byte[(totalSegments - segmentsSent >= segmentSize ? segmentSize : totalSegments - segmentsSent)];
+                    if (totalSegments - segmentsSent <= 1)
+                        dataToSend = new byte[file.Length % (int)Params.SEGMENT_SIZE + 1];
+
+                    else
+                        dataToSend = new byte[(int)Params.SEGMENT_SIZE];
+
                     for (int j = 0; j < dataToSend.Length; j++)
-                        dataToSend[j] = file[j + segmentsSent * segmentSize];
+                    {
+
+                        Console.WriteLine(j + segmentsSent * (int)Params.SEGMENT_SIZE);
+                        dataToSend[j] = file[j + segmentsSent * (int)Params.SEGMENT_SIZE];
+                    }
 
                     // Configure data msg
                     data.Type = Messages.DATA;
                     data.From = hello.To;
                     data.To = hello.From;
                     data.ConID = requestMsg.ConID;
-                    data.Size = file.Length - segmentsSent * (int)Params.SEGMENT_SIZE;
-                    data.More = segmentsSent < totalSegments - 1;
-                    data.Sequence = segmentsSent + 1;
+                    data.Size = (int)Params.WINDOW_SIZE;
+                    data.More = segmentsSent < totalSegments;
+                    data.Sequence = segmentsSent;
                     data.Data = dataToSend;
 
                     // Send data msg
@@ -183,15 +184,11 @@ namespace UDP_FTP.File_Handler
                     dataSize = socket.ReceiveFrom(buffer, ref remoteEP);
                     data2 = Encoding.ASCII.GetString(buffer, 0, dataSize);
                     var ackMSG = JsonSerializer.Deserialize<AckMSG>(data2);
+                    Console.WriteLine("ACK: " + segmentsSent);
 
-                    ackMSGs.Add(ackMSG);
+                    Console.WriteLine(segmentsSent + " - " + totalSegments);
                 }
-
-                Console.WriteLine(ackMSGs.Count);
             }
-
-
-
 
 
 
