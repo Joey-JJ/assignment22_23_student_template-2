@@ -13,7 +13,7 @@ namespace UDP_FTP.File_Handler
 {
     class Communicate
     {
-        private const string Server = "Server";
+        private const string Server = "MyServer";
         private string Client = "Client";
         private int SessionID;
         private Socket socket;
@@ -76,7 +76,7 @@ namespace UDP_FTP.File_Handler
             // Receive message
             dataSize = socket.ReceiveFrom(buffer, ref remoteEP);
             data2 = Encoding.ASCII.GetString(buffer, 0, dataSize);
-            HelloMSG hello = JsonSerializer.Deserialize<HelloMSG>(data2);
+            var hello = JsonSerializer.Deserialize<HelloMSG>(data2);
             Console.WriteLine("A message received from " + remoteEP.ToString() + " " + data);
 
             // Verify message
@@ -124,11 +124,11 @@ namespace UDP_FTP.File_Handler
             socket.SendTo(msg, msg.Length, SocketFlags.None, remoteEP);
 
             // TODO:  Start sending file data by setting first the socket ReceiveTimeout value
-
+            socket.ReceiveTimeout = 1000;
 
             // TODO: Open and read the text-file first
             // Make sure to locate a path on windows and macos platforms
-
+            var file = Encoding.ASCII.GetBytes(File.ReadAllText(requestMsg.FileName));
 
             // TODO: Sliding window with go-back-n implementation
             // Calculate the length of data to be sent
@@ -140,6 +140,58 @@ namespace UDP_FTP.File_Handler
             // first you send a full window of data
             // second you wait for the acks
             // then you start again.
+
+            var segmentSize = (int)Params.SEGMENT_SIZE;
+            var windowSize = (int)Params.WINDOW_SIZE;
+
+            var segmentsSent = 0;
+            var totalSegments = (int)Math.Ceiling(file.Length / (double)segmentSize);
+
+            var totalWindows = totalSegments / (double)windowSize;
+
+            byte[] dataToSend;
+
+            Console.WriteLine("Total size: " + file.Length);
+
+            while (segmentsSent < totalSegments)
+            {
+                List<AckMSG> ackMSGs = new();
+
+                // Send window cycle, check if last window cycle is smaller than window size
+                for (int i = 0; i < (totalSegments - segmentsSent >= windowSize ? windowSize : totalSegments - segmentsSent); i++)
+                {
+                    dataToSend = new byte[(totalSegments - segmentsSent >= segmentSize ? segmentSize : totalSegments - segmentsSent)];
+                    for (int j = 0; j < dataToSend.Length; j++)
+                        dataToSend[j] = file[j + segmentsSent * segmentSize];
+
+                    // Configure data msg
+                    data.Type = Messages.DATA;
+                    data.From = hello.To;
+                    data.To = hello.From;
+                    data.ConID = requestMsg.ConID;
+                    data.Size = file.Length - segmentsSent * (int)Params.SEGMENT_SIZE;
+                    data.More = segmentsSent < totalSegments - 1;
+                    data.Sequence = segmentsSent + 1;
+                    data.Data = dataToSend;
+
+                    // Send data msg
+                    msg = Encoding.ASCII.GetBytes(JsonSerializer.Serialize(data));
+                    socket.SendTo(msg, msg.Length, SocketFlags.None, remoteEP);
+                    segmentsSent++;
+
+                    // Receive ACK msg
+                    dataSize = socket.ReceiveFrom(buffer, ref remoteEP);
+                    data2 = Encoding.ASCII.GetString(buffer, 0, dataSize);
+                    var ackMSG = JsonSerializer.Deserialize<AckMSG>(data2);
+
+                    ackMSGs.Add(ackMSG);
+                }
+
+                Console.WriteLine(ackMSGs.Count);
+            }
+
+
+
 
 
 
@@ -154,12 +206,31 @@ namespace UDP_FTP.File_Handler
 
             // TODO: Send a CloseMSG message to the client for the current session
             // Send close connection request
+            cls.ConID = req.ConID;
+            cls.From = req.To;
+            cls.To = req.From;
+            cls.Type = Messages.CLOSE_REQUEST;
+
+            msg = Encoding.ASCII.GetBytes(JsonSerializer.Serialize(cls));
+            socket.SendTo(msg, msg.Length, SocketFlags.None, remoteEP);
 
 
             // TODO: Receive and verify a CloseMSG message confirmation for the current session
             // Get close connection confirmation
             // Receive the message and verify if there are no errors
+            dataSize = socket.ReceiveFrom(buffer, ref remoteEP);
+            data2 = Encoding.ASCII.GetString(buffer, 0, dataSize);
+            var closeReply = JsonSerializer.Deserialize<CloseMSG>(data2);
+            conSettings = new ConSettings()
+            {
+                Type = Messages.CLOSE_CONFIRM,
+                To = requestMsg.From,
+                From = requestMsg.To,
+                ConID = requestMsg.ConID,
+            };
 
+            error = ErrorHandler.VerifyClose(closeReply, conSettings);
+            if (error != 0) throw new Exception(error.ToString());
 
             Console.WriteLine("Group members: {0} | {1}", "student_1", "student_2");
             return ErrorType.NOERROR;
