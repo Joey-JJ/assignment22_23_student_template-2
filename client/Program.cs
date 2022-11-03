@@ -78,7 +78,7 @@ namespace Client
                 r.Type = Messages.REQUEST;
                 r.To = helloReply.From;
                 r.From = helloReply.To;
-                r.FileName = "tesdsadt.txt";
+                r.FileName = "test.txt";
                 r.ConID = helloReply.ConID;
 
                 msg = Encoding.ASCII.GetBytes(JsonSerializer.Serialize(r));
