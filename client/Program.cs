@@ -106,6 +106,7 @@ namespace Client
                 DataMSG dataMSG;
 
                 var transferring = true;
+                var fail = true;
                 while (transferring)
                 {
                     // Receive data msg and decode it
@@ -127,8 +128,17 @@ namespace Client
                     ack.Sequence = dataMSG.Sequence;
 
                     // Sending ACK msg
-                    msg = Encoding.ASCII.GetBytes(JsonSerializer.Serialize(ack));
-                    sock.SendTo(msg, msg.Length, SocketFlags.None, ServerEndpoint);
+                    if (ack.Sequence == 40 && fail == true)
+                    {
+                        System.Console.WriteLine("FAILING ACK 40");
+                        fail = false;
+                    }
+                    else
+                    {
+                        msg = Encoding.ASCII.GetBytes(JsonSerializer.Serialize(ack));
+                        sock.SendTo(msg, msg.Length, SocketFlags.None, ServerEndpoint);
+                    }
+
                 }
 
                 // TODO: Receive close message

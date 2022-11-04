@@ -5,6 +5,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Text.Json;
+using System.Linq;
 using UDP_FTP.Error_Handling;
 using UDP_FTP.Models;
 using static UDP_FTP.Models.Enums;
@@ -203,24 +204,29 @@ namespace UDP_FTP.File_Handler
                 }
 
                 System.Console.WriteLine("Sent window of data");
+
                 // Receive ACK messages
-                for (int windowSize = 0; windowSize < seqSent.Count; windowSize++)
+                try
                 {
-                    System.Console.WriteLine("Waiting for ACK..");
-                    dataSize = socket.ReceiveFrom(buffer, ref remoteEP);
-                    data2 = Encoding.ASCII.GetString(buffer, 0, dataSize);
-                    ackMSG = JsonSerializer.Deserialize<AckMSG>(data2);
-                    ackReceived.Add(ackMSG.Sequence);
-                    System.Console.WriteLine("ACK received: " + ackMSG.Sequence);
+                    for (int windowSize = 0; windowSize < seqSent.Count; windowSize++)
+                    {
+                        System.Console.WriteLine("Waiting for ACK..");
+
+                        dataSize = socket.ReceiveFrom(buffer, ref remoteEP);
+                        data2 = Encoding.ASCII.GetString(buffer, 0, dataSize);
+                        ackMSG = JsonSerializer.Deserialize<AckMSG>(data2);
+                        ackReceived.Add(ackMSG.Sequence);
+
+                        System.Console.WriteLine("ACK received: " + ackMSG.Sequence);
+                    }
                 }
-
-
-
-                // dataSize = socket.ReceiveFrom(buffer, ref remoteEP);
-                // data2 = Encoding.ASCII.GetString(buffer, 0, dataSize);
-                // ackMSG = JsonSerializer.Deserialize<AckMSG>(data2);
-                // Console.WriteLine("ACK: " + segmentsSent);
-
+                catch (SocketException)
+                {
+                    System.Console.WriteLine("Timeout..");
+                    var missingAck = seqSent.Except(ackReceived).ToList();
+                    var toResend = missingAck.Min();
+                    segmentsSent = toResend;
+                }
 
                 // Check ACK message and reset sending index to missing segment
 
