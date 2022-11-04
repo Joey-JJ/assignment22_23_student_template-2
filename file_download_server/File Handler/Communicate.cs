@@ -141,64 +141,161 @@ namespace UDP_FTP.File_Handler
             // second you wait for the acks
             // then you start again.
 
+            var data_transferring = true;
             var segmentsSent = 0;
             var totalSegments = Math.Ceiling(file.Length / (double)Params.SEGMENT_SIZE);
-            var bytesLeft = segmentsSent * (int)Params.SEGMENT_SIZE;
+            var lastSegmentLength = (int)(totalSegments % (int)Params.SEGMENT_SIZE == 0 ?
+                                    (int)Params.SEGMENT_SIZE :
+                                    totalSegments % (int)Params.SEGMENT_SIZE);
 
-            Console.WriteLine(file.Length);
-
-            while (segmentsSent < totalSegments)
+            // Transfer process
+            while (data_transferring)
             {
                 byte[] dataToSend;
-                for (var i = 0; i < (int)Params.WINDOW_SIZE; i++)
+                // Sliding window
+                for (var windowIndex = 0; windowIndex < (int)Params.WINDOW_SIZE; windowIndex++)
                 {
-                    if (totalSegments - segmentsSent <= 1)
-                        dataToSend = new byte[file.Length % (int)Params.SEGMENT_SIZE + 1];
-
-                    else
+                    bool isLast = totalSegments - segmentsSent == 1;
+                    // Decide data container length in case last segment is smaller
+                    if (!isLast)
                         dataToSend = new byte[(int)Params.SEGMENT_SIZE];
+                    else
+                        dataToSend = new byte[lastSegmentLength];
 
-                    for (int j = 0; j < dataToSend.Length; j++)
-                    {
+                    // Create offset for file bytes
+                    var offset = segmentsSent * (int)Params.SEGMENT_SIZE;
 
-                        Console.WriteLine(j + segmentsSent * (int)Params.SEGMENT_SIZE);
-                        dataToSend[j] = file[j + segmentsSent * (int)Params.SEGMENT_SIZE];
-                    }
+                    // Seed data container
+                    for (int byteIndex = 0; byteIndex < (int)Params.SEGMENT_SIZE; byteIndex++)
+                        dataToSend[byteIndex] = file[byteIndex + offset];
 
                     // Configure data msg
                     data.Type = Messages.DATA;
                     data.From = hello.To;
                     data.To = hello.From;
                     data.ConID = requestMsg.ConID;
-                    data.Size = (int)Params.WINDOW_SIZE;
-                    data.More = segmentsSent < totalSegments;
-                    data.Sequence = segmentsSent;
+                    data.Size = isLast ? lastSegmentLength : (int)Params.SEGMENT_SIZE;
+                    data.More = !isLast;
+                    data.Sequence = segmentsSent++;
                     data.Data = dataToSend;
 
-                    // Send data msg
+                    // Send data
                     msg = Encoding.ASCII.GetBytes(JsonSerializer.Serialize(data));
                     socket.SendTo(msg, msg.Length, SocketFlags.None, remoteEP);
-                    segmentsSent++;
 
-                    // Receive ACK msg
-                    dataSize = socket.ReceiveFrom(buffer, ref remoteEP);
-                    data2 = Encoding.ASCII.GetString(buffer, 0, dataSize);
-                    var ackMSG = JsonSerializer.Deserialize<AckMSG>(data2);
-                    Console.WriteLine("ACK: " + segmentsSent);
-
-                    Console.WriteLine(segmentsSent + " - " + totalSegments);
+                    if (isLast)
+                    {
+                        data_transferring = false;
+                        break;
+                    }
                 }
+
+                // Receive ACK messages
+
+                // Check ACK message and reset sending index to missing segment
+
             }
 
+            // var segmentsSent = 0;
+            // var totalSegments = Math.Ceiling(file.Length / (double)Params.SEGMENT_SIZE);
+            // var bytesLeft = segmentsSent * (int)Params.SEGMENT_SIZE;
+            // AckMSG ackMSG;
+            // List<int> ackCache;
+            // List<int> seqCache;
+
+            // var data_transferring = true;
+            // while (data_transferring)
+            // {
+            //     byte[] dataToSend;
+            //     ackCache = new List<int>();
+            //     seqCache = new List<int>();
+            //     for (var i = 0; i < (int)Params.WINDOW_SIZE; i++)
+            //     {
+
+            //         // Last Segment 
+            //         if (totalSegments - segmentsSent <= 1 && file.Length % (int)Params.SEGMENT_SIZE != 0)
+            //         {
+            //             dataToSend = new byte[file.Length % (int)Params.SEGMENT_SIZE];
+            //             for (int j = 0; j < dataToSend.Length; j++)
+            //                 dataToSend[j] = file[j + segmentsSent * (int)Params.SEGMENT_SIZE];
+
+            //             data_transferring = false;
+
+            //             // Configure data msg
+            //             data.Type = Messages.DATA;
+            //             data.From = hello.To;
+            //             data.To = hello.From;
+            //             data.ConID = requestMsg.ConID;
+            //             data.Size = (int)Params.WINDOW_SIZE;
+            //             data.More = false;
+            //             data.Sequence = segmentsSent;
+            //             data.Data = dataToSend;
+
+            //             seqCache.Add(segmentsSent);
+
+            //             // Send data msg
+            //             msg = Encoding.ASCII.GetBytes(JsonSerializer.Serialize(data));
+            //             socket.SendTo(msg, msg.Length, SocketFlags.None, remoteEP);
+            //             segmentsSent++;
+
+            //             // Receive ACK msg
+            //             dataSize = socket.ReceiveFrom(buffer, ref remoteEP);
+            //             data2 = Encoding.ASCII.GetString(buffer, 0, dataSize);
+            //             ackMSG = JsonSerializer.Deserialize<AckMSG>(data2);
+            //             Console.WriteLine("ACK: " + segmentsSent);
+
+            //             break;
+            //         }
+
+            //         // ALl but last segments
+            //         dataToSend = new byte[(int)Params.SEGMENT_SIZE];
+
+            //         for (int j = 0; j < dataToSend.Length; j++)
+            //             dataToSend[j] = file[j + segmentsSent * (int)Params.SEGMENT_SIZE];
+
+            //         // Configure data msg
+            //         data.Type = Messages.DATA;
+            //         data.From = hello.To;
+            //         data.To = hello.From;
+            //         data.ConID = requestMsg.ConID;
+            //         data.Size = (int)Params.WINDOW_SIZE;
+            //         data.More = segmentsSent < totalSegments;
+            //         data.Sequence = segmentsSent;
+            //         data.Data = dataToSend;
+
+            //         // Send data msg
+            //         msg = Encoding.ASCII.GetBytes(JsonSerializer.Serialize(data));
+            //         socket.SendTo(msg, msg.Length, SocketFlags.None, remoteEP);
+            //         segmentsSent++;
+
+            //         // Receive ACK msg
+            //         dataSize = socket.ReceiveFrom(buffer, ref remoteEP);
+            //         data2 = Encoding.ASCII.GetString(buffer, 0, dataSize);
+            //         ackMSG = JsonSerializer.Deserialize<AckMSG>(data2);
+            //         Console.WriteLine("ACK: " + segmentsSent);
+            //         ackCache.Add(ackMSG.Sequence);
+
+            //         if (segmentsSent == totalSegments)
+            //             data_transferring = false;
+            //     }
+
+            //     // TODO: Receive and verify the acknowledgements (AckMSG) of sent messages
+            //     // Your client implementation should send an AckMSG message for each received DataMSG message   
+            //     int? missingSeq = null;
+            //     foreach (var i in seqCache)
+            //         if (!ackCache.Contains(i))
+            //             missingSeq = i;
+
+            //     if (missingSeq != null)
+            //         segmentsSent = (int)missingSeq;
+            //     // TODO: Print each confirmed sequence in the console
+            //     // receive the message and verify if there are no errors
+            // }
 
 
-            // TODO: Receive and verify the acknowledgements (AckMSG) of sent messages
-            // Your client implementation should send an AckMSG message for each received DataMSG message   
 
 
 
-            // TODO: Print each confirmed sequence in the console
-            // receive the message and verify if there are no errors
 
 
             // TODO: Send a CloseMSG message to the client for the current session
