@@ -148,15 +148,21 @@ namespace UDP_FTP.File_Handler
                                     (int)Params.SEGMENT_SIZE :
                                     file.Length % (int)Params.SEGMENT_SIZE);
 
-            Console.WriteLine(file.Length);
             // Transfer process
             while (data_transferring)
             {
                 byte[] dataToSend;
+
+                AckMSG ackMSG;
+                List<int> seqSent = new();
+                List<int> ackReceived = new();
+
                 // Sliding window
                 for (var windowIndex = 0; windowIndex < (int)Params.WINDOW_SIZE; windowIndex++)
                 {
-                    bool isLast = totalSegments - segmentsSent == 1;
+                    // Check if segment is the last one
+                    bool isLast = segmentsSent == totalSegments - 1;
+
                     // Decide data container length in case last segment is smaller
                     if (!isLast)
                         dataToSend = new byte[(int)Params.SEGMENT_SIZE];
@@ -182,6 +188,9 @@ namespace UDP_FTP.File_Handler
                     data.Sequence = segmentsSent++;
                     data.Data = dataToSend;
 
+                    // Caching seq nr into seqSent
+                    seqSent.Add(data.Sequence);
+
                     // Send data
                     msg = Encoding.ASCII.GetBytes(JsonSerializer.Serialize(data));
                     socket.SendTo(msg, msg.Length, SocketFlags.None, remoteEP);
@@ -193,7 +202,25 @@ namespace UDP_FTP.File_Handler
                     }
                 }
 
+                System.Console.WriteLine("Sent window of data");
                 // Receive ACK messages
+                for (int windowSize = 0; windowSize < seqSent.Count; windowSize++)
+                {
+                    System.Console.WriteLine("Waiting for ACK..");
+                    dataSize = socket.ReceiveFrom(buffer, ref remoteEP);
+                    data2 = Encoding.ASCII.GetString(buffer, 0, dataSize);
+                    ackMSG = JsonSerializer.Deserialize<AckMSG>(data2);
+                    ackReceived.Add(ackMSG.Sequence);
+                    System.Console.WriteLine("ACK received: " + ackMSG.Sequence);
+                }
+
+
+
+                // dataSize = socket.ReceiveFrom(buffer, ref remoteEP);
+                // data2 = Encoding.ASCII.GetString(buffer, 0, dataSize);
+                // ackMSG = JsonSerializer.Deserialize<AckMSG>(data2);
+                // Console.WriteLine("ACK: " + segmentsSent);
+
 
                 // Check ACK message and reset sending index to missing segment
 
@@ -294,12 +321,6 @@ namespace UDP_FTP.File_Handler
             //     // TODO: Print each confirmed sequence in the console
             //     // receive the message and verify if there are no errors
             // }
-
-
-
-
-
-
 
             // TODO: Send a CloseMSG message to the client for the current session
             // Send close connection request
