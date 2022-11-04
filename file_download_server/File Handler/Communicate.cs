@@ -144,10 +144,11 @@ namespace UDP_FTP.File_Handler
             var data_transferring = true;
             var segmentsSent = 0;
             var totalSegments = Math.Ceiling(file.Length / (double)Params.SEGMENT_SIZE);
-            var lastSegmentLength = (int)(totalSegments % (int)Params.SEGMENT_SIZE == 0 ?
+            var lastSegmentLength = (int)(file.Length % (int)Params.SEGMENT_SIZE == 0 ?
                                     (int)Params.SEGMENT_SIZE :
-                                    totalSegments % (int)Params.SEGMENT_SIZE);
+                                    file.Length % (int)Params.SEGMENT_SIZE);
 
+            Console.WriteLine(file.Length);
             // Transfer process
             while (data_transferring)
             {
@@ -166,8 +167,10 @@ namespace UDP_FTP.File_Handler
                     var offset = segmentsSent * (int)Params.SEGMENT_SIZE;
 
                     // Seed data container
-                    for (int byteIndex = 0; byteIndex < (int)Params.SEGMENT_SIZE; byteIndex++)
+                    for (int byteIndex = 0; byteIndex < dataToSend.Length; byteIndex++)
+                    {
                         dataToSend[byteIndex] = file[byteIndex + offset];
+                    }
 
                     // Configure data msg
                     data.Type = Messages.DATA;
@@ -323,8 +326,8 @@ namespace UDP_FTP.File_Handler
                 ConID = requestMsg.ConID,
             };
 
-            error = ErrorHandler.VerifyClose(closeReply, conSettings);
-            if (error != 0) throw new Exception(error.ToString());
+            // error = ErrorHandler.VerifyClose(closeReply, conSettings);
+            // if (error != 0) throw new Exception(error.ToString());
 
             Console.WriteLine("Group members: {0} | {1}", "student_1", "student_2");
             return ErrorType.NOERROR;
