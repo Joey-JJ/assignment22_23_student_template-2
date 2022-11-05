@@ -18,19 +18,20 @@ namespace UDP_FTP.File_Handler
         private string Client = "Client";
         private int SessionID;
         private Socket socket;
-        // private IPEndPoint remoteEndpoint;
+        private IPEndPoint remoteEndpoint;
         private EndPoint remoteEP;
         // private ErrorType Status;
         private byte[] buffer;
         byte[] msg;
         // private string file;
-        // ConSettings C;
+        ConSettings C;
 
 
         public Communicate()
         {
             // TODO: Initializes another instance of the IPEndPoint for the remote host
-            remoteEP = (EndPoint)new IPEndPoint(IPAddress.Any, 5010);
+            remoteEndpoint = new IPEndPoint(IPAddress.Any, 5010);
+            remoteEP = (EndPoint)remoteEndpoint;
 
             // TODO: Specify the buffer size
             buffer = new byte[(int)Enums.Params.BUFFER_SIZE];
@@ -56,7 +57,7 @@ namespace UDP_FTP.File_Handler
             AckMSG ack = new AckMSG();
             CloseMSG cls = new CloseMSG();
 
-            var conSettings = new ConSettings()
+            C = new ConSettings()
             {
                 Type = Messages.HELLO,
                 To = Server,
@@ -81,7 +82,7 @@ namespace UDP_FTP.File_Handler
             Console.WriteLine("A message received from " + remoteEP.ToString() + " " + data);
 
             // Verify message
-            var error = ErrorHandler.VerifyGreeting(hello, conSettings);
+            var error = ErrorHandler.VerifyGreeting(hello, C);
             if (error == 0) Console.WriteLine("No error..");
             else return error;
 
@@ -101,7 +102,7 @@ namespace UDP_FTP.File_Handler
             data2 = Encoding.ASCII.GetString(buffer, 0, dataSize);
             var requestMsg = JsonSerializer.Deserialize<RequestMSG>(data2);
             Console.WriteLine("A message received from " + remoteEP.ToString() + " " + data);
-            conSettings = new ConSettings()
+            C = new ConSettings()
             {
                 Type = Messages.REQUEST,
                 To = Server,
@@ -109,7 +110,7 @@ namespace UDP_FTP.File_Handler
                 ConID = 1,
             };
 
-            error = ErrorHandler.VerifyRequest(requestMsg, conSettings);
+            error = ErrorHandler.VerifyRequest(requestMsg, C);
             if (error == 0) Console.WriteLine("No error..");
             else return error;
 
@@ -217,7 +218,7 @@ namespace UDP_FTP.File_Handler
                         ackMSG = JsonSerializer.Deserialize<AckMSG>(data2);
                         ackReceived.Add(ackMSG.Sequence);
 
-                        conSettings = new ConSettings()
+                        C = new ConSettings()
                         {
                             Type = Messages.ACK,
                             To = Server,
@@ -226,7 +227,7 @@ namespace UDP_FTP.File_Handler
                             Sequence = ackMSG.Sequence
                         };
 
-                        error = ErrorHandler.VerifyAck(ackMSG, conSettings);
+                        error = ErrorHandler.VerifyAck(ackMSG, C);
                         if (error != 0) return error;
 
                         System.Console.WriteLine("ACK received: " + ackMSG.Sequence);
@@ -258,7 +259,7 @@ namespace UDP_FTP.File_Handler
             dataSize = socket.ReceiveFrom(buffer, ref remoteEP);
             data2 = Encoding.ASCII.GetString(buffer, 0, dataSize);
             var closeReply = JsonSerializer.Deserialize<CloseMSG>(data2);
-            conSettings = new ConSettings()
+            C = new ConSettings()
             {
                 Type = Messages.CLOSE_CONFIRM,
                 To = requestMsg.From,
@@ -266,7 +267,7 @@ namespace UDP_FTP.File_Handler
                 ConID = requestMsg.ConID,
             };
 
-            error = ErrorHandler.VerifyClose(closeReply, conSettings);
+            error = ErrorHandler.VerifyClose(closeReply, C);
             if (error != 0) return error;
 
             return ErrorType.NOERROR;
