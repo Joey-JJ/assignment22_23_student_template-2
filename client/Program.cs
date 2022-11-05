@@ -6,6 +6,9 @@ using System.Text.Json;
 using UDP_FTP.Models;
 using UDP_FTP.Error_Handling;
 using static UDP_FTP.Models.Enums;
+using System.Collections.Generic;
+using System.Linq;
+using System.IO;
 
 using System.Text.Json.Serialization;
 
@@ -18,9 +21,9 @@ namespace Client
             // TODO: add the student number of your group members as a string value. 
             // string format example: "Jan Jansen 09123456" 
             // If a group has only one member fill in an empty string for the second student
-            string student_1 = "";
-            string student_2 = "";
-            _ = student_1 + student_2;
+            string student_1 = "Joey van der Valk 1000421";
+            string student_2 = "Mees van Zelst 0978218";
+            _ = student_1 + student_2; // To get rid of warning
 
             byte[] buffer = new byte[1000];
             byte[] msg = new byte[100];
@@ -46,6 +49,8 @@ namespace Client
             var ServerEndpoint = new IPEndPoint(IPAddress.Parse("127.0.0.1"), 5004);
             IPEndPoint sender = new IPEndPoint(IPAddress.Any, 0);
             EndPoint remoteEP = (EndPoint)sender;
+
+            var dataMsgs = new List<DataMSG>();
 
             try
             {
@@ -106,13 +111,14 @@ namespace Client
                 DataMSG dataMSG;
 
                 var transferring = true;
-                var fail = true;
+
                 while (transferring)
                 {
                     // Receive data msg and decode it
                     b = sock.ReceiveFrom(buffer, ref remoteEP);
                     data = Encoding.ASCII.GetString(buffer, 0, b);
                     dataMSG = JsonSerializer.Deserialize<DataMSG>(data);
+                    dataMsgs.Add(dataMSG);
 
                     // Stop receiving once last packet is received
                     if (!dataMSG.More) transferring = false;
@@ -128,17 +134,8 @@ namespace Client
                     ack.Sequence = dataMSG.Sequence;
 
                     // Sending ACK msg
-                    if (ack.Sequence == 40 && fail == true)
-                    {
-                        System.Console.WriteLine("FAILING ACK 40");
-                        fail = false;
-                    }
-                    else
-                    {
-                        msg = Encoding.ASCII.GetBytes(JsonSerializer.Serialize(ack));
-                        sock.SendTo(msg, msg.Length, SocketFlags.None, ServerEndpoint);
-                    }
-
+                    msg = Encoding.ASCII.GetBytes(JsonSerializer.Serialize(ack));
+                    sock.SendTo(msg, msg.Length, SocketFlags.None, ServerEndpoint);
                 }
 
                 // TODO: Receive close message
@@ -156,13 +153,18 @@ namespace Client
                 // TODO: confirm close message
                 msg = Encoding.ASCII.GetBytes(JsonSerializer.Serialize(cls));
                 sock.SendTo(msg, msg.Length, SocketFlags.None, ServerEndpoint);
+
+                // Remove items with duplicate sequence numbers and write data to file
+                var noDuplicates = dataMsgs.GroupBy(x => x.Sequence).Select(x => x.First()).ToList();
+                foreach (var dataMsg in noDuplicates)
+                    File.AppendAllText("test.txt", Encoding.ASCII.GetString(dataMsg.Data));
+
+                Console.WriteLine("Download Complete!");
             }
             catch
             {
                 Console.WriteLine("\nSocket Error. Terminating");
             }
-
-            Console.WriteLine("Download Complete!");
 
         }
     }

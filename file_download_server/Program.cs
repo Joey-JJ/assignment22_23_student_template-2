@@ -14,9 +14,8 @@ namespace UDP_FTP
             // TODO: add the student number of your group members as a string value. 
             // string format example: "Jan Jansen 09123456" 
             // If a group has only one member fill in an empty string for the second student
-            string student_1 = "";
-            string student_2 = "";
-
+            string student_1 = "Joey van der Valk 1000421";
+            string student_2 = "Mees van Zelst 0978218";
 
 
             Console.WriteLine("Server is waiting for new request!");
