@@ -156,9 +156,13 @@ namespace Client
 
                 // Remove items with duplicate sequence numbers and write data to file
                 var noDuplicates = dataMsgs.GroupBy(x => x.Sequence).Select(x => x.First()).ToList();
+                var fileContent = "";
                 foreach (var dataMsg in noDuplicates)
+                {
                     File.AppendAllText("test.txt", Encoding.ASCII.GetString(dataMsg.Data));
-
+                    fileContent = fileContent + Encoding.ASCII.GetString(dataMsg.Data);
+                }
+                System.Console.WriteLine(fileContent);
                 Console.WriteLine("Download Complete!");
             }
             catch
